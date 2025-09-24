@@ -1,10 +1,11 @@
+// Load environment variables FIRST
+import dotenv from 'dotenv';
+dotenv.config();
+
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import connectDB from './src/config/database.js';
-
-// Load environment variables
-dotenv.config();
+import apiRoutes from './src/routes/index.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -24,13 +25,7 @@ app.get('/', (req, res) => {
 });
 
 // API routes
-app.get('/api/health', (req, res) => {
-  res.json({
-    status: 'OK',
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
-  });
-});
+app.use('/api', apiRoutes);
 
 // Error handling middleware
 app.use((err, _req, res, _next) => {
