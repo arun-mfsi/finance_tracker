@@ -18,12 +18,6 @@ const AppRoutes = () => {
   const location = useLocation();
   const { isAuthenticated, isInitialized, validateAndRefreshToken } = useAuth();
 
-  console.log('AppRoutes - Auth state:', {
-    isAuthenticated,
-    isInitialized,
-    currentPath: location.pathname
-  });
-
   const getDefaultRedirect = () => {
     if (!isInitialized) {
       return null;

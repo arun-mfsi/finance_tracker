@@ -25,8 +25,7 @@ const PublicPageLoader = () => (
  * These routes are automatically wrapped by PublicRoute guard
  */
 const PublicRoutes = () => {
-  console.log('PublicRoutes component rendering...');
-
+  
   return (
     <Suspense fallback={<PublicPageLoader />}>
       <Routes>

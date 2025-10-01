@@ -6,13 +6,6 @@ const PublicRoute = ({ children }) => {
   const { isAuthenticated, isLoading, isInitialized } = useAuth();
   const location = useLocation();
 
-  console.log('PublicRoute - Auth state:', {
-    isAuthenticated,
-    isLoading,
-    isInitialized,
-    pathname: location.pathname,
-  });
-
   // Show loading while initializing auth state
   if (!isInitialized || isLoading) {
     return (

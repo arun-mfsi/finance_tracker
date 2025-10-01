@@ -26,7 +26,6 @@ const ProtectedPageLoader = () => (
  * These routes are automatically wrapped by ProtectedRoute guard
  */
 const ProtectedRoutes = () => {
-  console.log('ProtectedRoutes component rendering...');
 
   return (
     <Suspense fallback={<ProtectedPageLoader />}>

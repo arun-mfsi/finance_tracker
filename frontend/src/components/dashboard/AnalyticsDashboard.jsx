@@ -75,16 +75,6 @@ const AnalyticsDashboard = () => {
     months: timeRange === '1year' ? 12 : timeRange === '6months' ? 6 : 3,
   });
 
-  // Debug: Log the financial summary data
-  console.log('AnalyticsDashboard - Financial Summary:', {
-    financialSummary,
-    summaryLoading,
-    dateRange,
-    categoryBreakdown,
-    spendingTrends,
-    monthlySummary
-  });
-
   // Calculate unique analytics metrics
   const totalIncome = financialSummary?.totalIncome || 0;
   const totalExpenses = financialSummary?.totalExpenses || 0;
