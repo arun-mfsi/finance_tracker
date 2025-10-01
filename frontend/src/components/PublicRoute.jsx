@@ -2,10 +2,6 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { Box, CircularProgress } from '@mui/material';
 import { useAuth } from '../hooks/useAuth';
 
-/**
- * PublicRoute component - prevents authenticated users from accessing public pages
- * Redirects authenticated users to dashboard or intended page
- */
 const PublicRoute = ({ children }) => {
   const { isAuthenticated, isLoading, isInitialized } = useAuth();
   const location = useLocation();
@@ -34,7 +30,6 @@ const PublicRoute = ({ children }) => {
   }
 
   if (isAuthenticated) {
-    // Get the intended destination from location state, default to dashboard
     const from = location.state?.from?.pathname || '/dashboard';
     return <Navigate to={from} replace />;
   }

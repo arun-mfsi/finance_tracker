@@ -11,14 +11,19 @@ import {
 } from '../services/userService.js';
 import User from '../models/User.js';
 import { generateAuthTokens, verifyToken } from '../utils/jwt.js';
+import { uploadToCloudinary, deleteFromCloudinary } from '../config/cloudinary.js';
+import logger from '../config/logger.js';
 
 // Register new user
 export const register = async (req, res) => {
   try {
     const { email, password, firstName, lastName, currency } = req.body;
 
+    logger.info('Registration attempt', { email, firstName, lastName, currency });
+
     // Validate required fields
     if (!email || !password || !firstName || !lastName || !currency) {
+      logger.warn('Registration failed - missing required fields', { email });
       return res.status(400).json({
         success: false,
         message:
@@ -29,6 +34,7 @@ export const register = async (req, res) => {
     // Check if email already exists
     const emailAlreadyExists = await emailExists(email);
     if (emailAlreadyExists) {
+      logger.warn('Registration failed - email already exists', { email });
       return res.status(409).json({
         success: false,
         message: 'Email already registered',
@@ -53,6 +59,12 @@ export const register = async (req, res) => {
       refreshTokenExpiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 1 day
     });
 
+    // Ensure consistent ID field for frontend
+    userObject.id = userObject._id;
+
+    logger.logAuth('register', userObject._id, true, { email, firstName, lastName });
+    logger.info('User registered successfully', { userId: userObject._id, email });
+
     res.status(201).json({
       success: true,
       message: 'User registered successfully',
@@ -63,6 +75,7 @@ export const register = async (req, res) => {
       },
     });
   } catch (error) {
+    logger.error('Registration error', { error: error.message, stack: error.stack });
     res.status(500).json({
       success: false,
       message: 'Registration failed',
@@ -76,8 +89,11 @@ export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
+    logger.info('Login attempt', { email, ip: req.ip });
+
     // Validate required fields
     if (!email || !password) {
+      logger.warn('Login failed - missing credentials', { email });
       return res.status(400).json({
         success: false,
         message: 'Email and password are required',
@@ -87,6 +103,7 @@ export const login = async (req, res) => {
     // Find user by email
     const user = await findUserByEmail(email);
     if (!user) {
+      logger.warn('Login failed - user not found', { email });
       return res.status(401).json({
         success: false,
         message: 'Invalid email or password',
@@ -95,6 +112,7 @@ export const login = async (req, res) => {
 
     // Check if user is active
     if (!user.isActive) {
+      logger.warn('Login failed - account deactivated', { email, userId: user._id });
       return res.status(401).json({
         success: false,
         message: 'Account is deactivated',
@@ -104,6 +122,7 @@ export const login = async (req, res) => {
     // Compare password
     const isValidPassword = await comparePassword(password, user.password);
     if (!isValidPassword) {
+      logger.warn('Login failed - invalid password', { email, userId: user._id });
       return res.status(401).json({
         success: false,
         message: 'Invalid email or password',
@@ -117,6 +136,9 @@ export const login = async (req, res) => {
     const userResponse = user.toObject();
     delete userResponse.password;
 
+    // Ensure consistent ID field for frontend
+    userResponse.id = userResponse._id;
+
     // Generate JWT tokens
     const { accessToken, refreshToken } = generateAuthTokens(user);
 
@@ -124,6 +146,9 @@ export const login = async (req, res) => {
     user.refreshToken = refreshToken;
     user.refreshTokenExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 1 day
     await user.save();
+
+    logger.logAuth('login', user._id, true, { email, ip: req.ip });
+    logger.info('User logged in successfully', { userId: user._id, email });
 
     res.status(200).json({
       success: true,
@@ -135,6 +160,7 @@ export const login = async (req, res) => {
       },
     });
   } catch (error) {
+    logger.error('Login error', { error: error.message, stack: error.stack, email: req.body.email });
     res.status(500).json({
       success: false,
       message: 'Login failed',
@@ -381,6 +407,93 @@ export const logout = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Logout failed',
+      error: error.message,
+    });
+  }
+};
+
+// Upload profile image
+export const uploadProfileImage = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'No image file provided',
+      });
+    }
+
+    // Convert buffer to base64
+    const base64Image = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+
+    const { url, publicId } = await uploadToCloudinary(base64Image);
+
+    const user = await User.findById(userId);
+
+    if (user.profileImage) {
+      const urlParts = user.profileImage.split('/');
+      const oldPublicId = urlParts.slice(-2).join('/').split('.')[0];
+      try {
+        await deleteFromCloudinary(oldPublicId);
+      } catch (deleteError) {
+        console.error('Error deleting old image:', deleteError);
+      }
+    }
+
+    user.profileImage = url;
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Profile image uploaded successfully',
+      profileImage: url,
+    });
+  } catch (error) {
+    console.error('Profile image upload error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to upload profile image',
+      error: error.message,
+    });
+  }
+};
+
+// Delete profile image
+export const deleteProfileImage = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const user = await User.findById(userId);
+
+    if (!user.profileImage) {
+      return res.status(400).json({
+        success: false,
+        message: 'No profile image to delete',
+      });
+    }
+
+    const urlParts = user.profileImage.split('/');
+    const publicId = urlParts.slice(-2).join('/').split('.')[0];
+
+    try {
+      await deleteFromCloudinary(publicId);
+    } catch (deleteError) {
+      console.error('Error deleting from Cloudinary:', deleteError);
+    }
+
+    user.profileImage = null;
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Profile image deleted successfully',
+    });
+  } catch (error) {
+    console.error('Profile image delete error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete profile image',
       error: error.message,
     });
   }

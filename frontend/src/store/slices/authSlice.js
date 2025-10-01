@@ -188,6 +188,7 @@ export const selectIsAuthenticated = state => state.auth.isAuthenticated;
 export const selectIsLoading = state => state.auth.isLoading;
 export const selectError = state => state.auth.error;
 export const selectAccessToken = state => state.auth.accessToken;
+export const selectRefreshToken = state => state.auth.refreshToken;
 export const selectIsInitialized = state => state.auth.isInitialized;
 
 export default authSlice.reducer;

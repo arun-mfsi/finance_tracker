@@ -8,21 +8,26 @@ import {
   deactivateAccount,
   refreshToken,
   logout,
+  uploadProfileImage,
+  deleteProfileImage,
 } from '../controllers/userController.js';
 import { authenticateToken } from '../middleware/auth.js';
+import { authLimiter } from '../middleware/rateLimiter.js';
+import { uploadSingle, handleUploadError } from '../middleware/upload.js';
 
 const router = express.Router();
 
-// Authentication routes (public)
-router.post('/register', register);
-router.post('/login', login);
-router.post('/refresh-token', refreshToken);
+router.post('/register', authLimiter, register);
+router.post('/login', authLimiter, login);
+router.post('/refresh-token', authLimiter, refreshToken);
 router.post('/logout', logout);
 
-// User profile routes (protected)
 router.get('/profile', authenticateToken, getProfile);
 router.put('/profile', authenticateToken, updateProfile);
 router.put('/profile/password', authenticateToken, updatePassword);
 router.delete('/profile', authenticateToken, deactivateAccount);
+
+router.post('/profile/image', authenticateToken, uploadSingle, handleUploadError, uploadProfileImage);
+router.delete('/profile/image', authenticateToken, deleteProfileImage);
 
 export default router;

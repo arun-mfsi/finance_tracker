@@ -1,8 +1,7 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 
-// Base query with authentication and error handling
-const baseQuery = fetchBaseQuery({
-  baseUrl: import.meta.env.VITE_API_URL || 'http://localhost:3000/api',
+const customBaseQuery = fetchBaseQuery({
+  baseUrl: import.meta.env.VITE_API_URL || 'http://localhost:3001/api',
   prepareHeaders: (headers, { getState }) => {
     // Get token from Redux state
     const token = getState().auth.accessToken;
@@ -11,10 +10,23 @@ const baseQuery = fetchBaseQuery({
       headers.set('authorization', `Bearer ${token}`);
     }
 
-    headers.set('content-type', 'application/json');
     return headers;
   },
 });
+
+// Wrapper to add content-type for non-FormData requests
+const baseQuery = async (args, api, extraOptions) => {
+  // If body is FormData, don't set content-type (browser will set it with boundary)
+  // Otherwise, set content-type to application/json
+  if (typeof args !== 'string' && args.body && !(args.body instanceof FormData)) {
+    args.headers = args.headers || new Headers();
+    if (args.headers instanceof Headers) {
+      args.headers.set('content-type', 'application/json');
+    }
+  }
+
+  return customBaseQuery(args, api, extraOptions);
+};
 
 // Enhanced base query with token refresh logic
 const baseQueryWithReauth = async (args, api, extraOptions) => {
@@ -62,7 +74,7 @@ const baseQueryWithReauth = async (args, api, extraOptions) => {
 export const baseApi = createApi({
   reducerPath: 'api',
   baseQuery: baseQueryWithReauth,
-  tagTypes: ['Auth', 'User'],
+  tagTypes: ['Auth', 'User', 'Transaction', 'FinancialSummary'],
   endpoints: () => ({}),
 });
 

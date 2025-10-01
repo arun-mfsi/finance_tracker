@@ -1,9 +1,11 @@
 import { Routes, Route } from 'react-router-dom';
 import { Suspense, lazy } from 'react';
 import { Box, CircularProgress } from '@mui/material';
+import AppLayout from './layout/AppLayout';
 
 // Lazy load protected page components
 const Dashboard = lazy(() => import('../pages/Dashboard'));
+const Transactions = lazy(() => import('../pages/Transactions'));
 
 // Loading component for protected routes
 const ProtectedPageLoader = () => (
@@ -29,9 +31,10 @@ const ProtectedRoutes = () => {
   return (
     <Suspense fallback={<ProtectedPageLoader />}>
       <Routes>
-        <Route path="dashboard" element={<Dashboard />} />
-        {/* Add more protected routes here as needed */}
-        {/* <Route path="profile" element={<Profile />} /> */}
+        <Route path="/" element={<AppLayout />}>
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/transactions" element={<Transactions />} />
+        </Route>
       </Routes>
     </Suspense>
   );

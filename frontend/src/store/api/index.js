@@ -14,6 +14,8 @@ export {
   useForgotPasswordMutation,
   useResetPasswordMutation,
   useVerifyEmailMutation,
+  useUploadProfileImageMutation,
+  useDeleteProfileImageMutation,
 } from './authApi';
 
 // Users API
@@ -31,3 +33,16 @@ export {
   useGetUserActivityQuery,
   useUpdateNotificationSettingsMutation,
 } from './usersApi';
+
+// Transactions API
+export {
+  transactionsApi,
+  useGetTransactionsQuery,
+  useGetTransactionByIdQuery,
+  useCreateTransactionMutation,
+  useUpdateTransactionMutation,
+  useDeleteTransactionMutation,
+  useGetFinancialSummaryQuery,
+  useGetRecentTransactionsQuery,
+  useGetMonthlyTransactionsQuery,
+} from './transactionsApi';

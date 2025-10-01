@@ -1,11 +1,12 @@
 import { useSelector, useDispatch } from 'react-redux';
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import {
   selectUser,
   selectIsAuthenticated,
   selectIsLoading,
   selectError,
   selectAccessToken,
+  selectRefreshToken,
   selectIsInitialized,
   clearError,
   logout,
@@ -14,13 +15,17 @@ import {
   loginFailure,
   registerSuccess,
   registerFailure,
+  refreshTokenSuccess,
+  refreshTokenFailure,
 } from '../store/slices/authSlice';
+import { isTokenExpired, shouldRefreshToken } from '../utils/tokenUtils';
 import {
   useLoginMutation,
   useRegisterMutation,
   useLogoutMutation,
   useGetUserProfileQuery,
   useUpdateProfileMutation,
+  useRefreshTokenMutation,
 } from '../store/api';
 
 /**
@@ -36,6 +41,7 @@ export const useAuth = () => {
   const isLoading = useSelector(selectIsLoading);
   const error = useSelector(selectError);
   const accessToken = useSelector(selectAccessToken);
+  const refreshToken = useSelector(selectRefreshToken);
   const isInitialized = useSelector(selectIsInitialized);
 
   // RTK Query mutations
@@ -44,6 +50,10 @@ export const useAuth = () => {
     useRegisterMutation();
   const [logoutMutation] = useLogoutMutation();
   const [updateProfileMutation] = useUpdateProfileMutation();
+  const [refreshTokenMutation] = useRefreshTokenMutation();
+
+  // Ref to prevent multiple simultaneous refresh attempts
+  const refreshInProgress = useRef(false);
 
   // Get user profile query (only if authenticated)
   const {
@@ -56,30 +66,70 @@ export const useAuth = () => {
 
   // Initialize auth state on app load
   useEffect(() => {
-    if (!isInitialized && accessToken) {
-      // If we have a token but no user data, fetch profile
-      if (!user && !isProfileLoading) {
-        // Profile query will automatically run due to the skip condition
-      }
-    } else if (!accessToken) {
-      // No token, mark as initialized
-      dispatch(setInitialized(true));
+    if (!isInitialized && !accessToken) {
+      // No token, mark as initialized immediately
+        dispatch(setInitialized(true));
     }
   }, [accessToken, user, isInitialized, isProfileLoading, dispatch]);
 
-  // Update user data when profile is fetched
   useEffect(() => {
     if (profileData && accessToken && !user) {
       dispatch(
         loginSuccess({
           user: profileData,
           accessToken,
-          refreshToken: accessToken, // Use accessToken as fallback
+          refreshToken: accessToken,
         })
       );
       dispatch(setInitialized(true));
     }
   }, [profileData, accessToken, user, dispatch]);
+
+
+
+  // Token refresh function
+  const refreshAccessToken = useCallback(async () => {
+    if (!refreshToken || refreshInProgress.current) {
+      return false;
+    }
+
+    try {
+      refreshInProgress.current = true;
+      const result = await refreshTokenMutation({ refreshToken }).unwrap();
+
+      dispatch(refreshTokenSuccess({
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+      }));
+
+      return true;
+    } catch (error) {
+      console.error('Token refresh failed:', error);
+      dispatch(refreshTokenFailure());
+      return false;
+    } finally {
+      refreshInProgress.current = false;
+    }
+  }, [refreshToken, refreshTokenMutation, dispatch]);
+
+  // Check token validity and refresh if needed
+  const validateAndRefreshToken = useCallback(async () => {
+    if (!accessToken) {
+      return false;
+    }
+
+    // Check if token is expired
+    if (isTokenExpired(accessToken)) {
+      return await refreshAccessToken();
+    }
+
+    // Check if token should be refreshed proactively
+    if (shouldRefreshToken(accessToken)) {
+      await refreshAccessToken();
+    }
+
+    return true;
+  }, [accessToken, refreshAccessToken]);
 
   // Mark as initialized if profile fetch fails (invalid token)
   useEffect(() => {
@@ -88,6 +138,26 @@ export const useAuth = () => {
       dispatch(setInitialized(true));
     }
   }, [profileError, accessToken, dispatch]);
+
+  // Initialize authentication on app startup
+  useEffect(() => {
+    const initializeAuth = async () => {
+      if (accessToken && !isInitialized) {
+        try {
+          if (isTokenExpired(accessToken)) {
+            dispatch(logout());
+          }
+        } catch (error) {
+          dispatch(logout());
+        }
+        dispatch(setInitialized(true));
+      } else if (!accessToken && !isInitialized) {
+        dispatch(setInitialized(true));
+      }
+    };
+
+    initializeAuth();
+  }, [accessToken, isInitialized, dispatch]);
 
   // Login function
   const login = useCallback(
@@ -148,16 +218,16 @@ export const useAuth = () => {
 
   // Logout function
   const logoutUserFunc = useCallback(async () => {
+    // Clear local state immediately for better UX
+    dispatch(logout());
+
     try {
-      await logoutMutation().unwrap();
-      // Clear local state after successful server logout
-      dispatch(logout());
+      // Then attempt server logout (best effort)
+      await logoutMutation(refreshToken).unwrap();
     } catch (error) {
-      // Even if server logout fails, we still clear local state
-      console.error('Logout error:', error);
-      dispatch(logout()); // Manual logout as fallback
-    }
-  }, [logoutMutation, dispatch]);
+       dispatch(logout()); // Manual logout as fallback   
+    } 
+  }, [logoutMutation, refreshToken, dispatch]);
 
   // Update user profile function
   const updateProfile = useCallback(
@@ -195,6 +265,8 @@ export const useAuth = () => {
     logout: logoutUserFunc,
     updateProfile,
     clearError: clearAuthError,
+    validateAndRefreshToken,
+    refreshAccessToken,
 
     // Additional state
     isLoginLoading,

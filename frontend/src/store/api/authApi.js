@@ -71,9 +71,10 @@ export const authApi = baseApi.injectEndpoints({
 
     // Logout user
     logout: builder.mutation({
-      query: () => ({
+      query: (refreshToken) => ({
         url: '/users/logout',
         method: 'POST',
+        body: { refreshToken },
       }),
       invalidatesTags: ['Auth'],
       transformResponse: response => response.data || response,
@@ -134,6 +135,33 @@ export const authApi = baseApi.injectEndpoints({
         return response.data?.message || 'Email verification failed';
       },
     }),
+
+    // Upload profile image
+    uploadProfileImage: builder.mutation({
+      query: (formData) => ({
+        url: '/users/profile/image',
+        method: 'POST',
+        body: formData,
+      }),
+      invalidatesTags: ['Auth', 'User'],
+      transformResponse: response => response.data || response,
+      transformErrorResponse: response => {
+        return response.data?.message || 'Failed to upload profile image';
+      },
+    }),
+
+    // Delete profile image
+    deleteProfileImage: builder.mutation({
+      query: () => ({
+        url: '/users/profile/image',
+        method: 'DELETE',
+      }),
+      invalidatesTags: ['Auth', 'User'],
+      transformResponse: response => response.data || response,
+      transformErrorResponse: response => {
+        return response.data?.message || 'Failed to delete profile image';
+      },
+    }),
   }),
 });
 
@@ -148,4 +176,6 @@ export const {
   useForgotPasswordMutation,
   useResetPasswordMutation,
   useVerifyEmailMutation,
+  useUploadProfileImageMutation,
+  useDeleteProfileImageMutation,
 } = authApi;

@@ -13,7 +13,9 @@ export const ROUTE_PATHS = {
 
   // Protected routes
   DASHBOARD: '/dashboard',
+  TRANSACTIONS: '/dashboard/transactions',
   PROFILE: '/profile',
+  SETTINGS: '/settings',
 
   // Special routes
   HOME: '/',
@@ -55,6 +57,11 @@ export const ROUTES_CONFIG = {
       isDefault: true, // Default page for authenticated users
     },
     {
+      path: ROUTE_PATHS.TRANSACTIONS,
+      title: 'Transactions',
+      description: 'Transaction management',
+    },
+    {
       path: ROUTE_PATHS.PROFILE,
       title: 'Profile',
       description: 'User profile management',
@@ -63,21 +70,6 @@ export const ROUTES_CONFIG = {
       path: ROUTE_PATHS.SETTINGS,
       title: 'Settings',
       description: 'Application settings',
-    },
-    {
-      path: ROUTE_PATHS.TRANSACTIONS,
-      title: 'Transactions',
-      description: 'Transaction management',
-    },
-    {
-      path: ROUTE_PATHS.CATEGORIES,
-      title: 'Categories',
-      description: 'Category management',
-    },
-    {
-      path: ROUTE_PATHS.REPORTS,
-      title: 'Reports',
-      description: 'Financial reports and analytics',
     },
   ],
 };
